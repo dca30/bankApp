@@ -1,9 +1,38 @@
-'use strict';
 /// //////////////////////////////////////////////
 /// //////////////////////////////////////////////
 // BANKIST APP
 const cargasPagina = window.localStorage.getItem('cargasPagina') || 0;
 window.localStorage.setItem('cargasPagina', Number(cargasPagina) + 1);
+/* MONGODB
+db.getCollection('cuentas').find({})
+mongoimport --db bancos --collection cuentas --drop --file cuentas.json --jsonArray
+db.getCollection('cuentas').insertMany([
+ {
+  owner: 'Jonas Schmedtmann',
+  movements: [200, 450, -400, 3000, -650, -130, 70, 1300],
+  interestRate: 1.2, // %
+  pin: 1111,
+},
+{
+  owner: 'Jessica Davis',
+  movements: [5000, 3400, -150, -790, -3210, -1000, 8500, -30],
+  interestRate: 1.5,
+  pin: 2222,
+},
+{
+  owner: 'Steven Thomas Williams',
+  movements: [200, -200, 340, -300, -20, 50, 400, -460],
+  interestRate: 0.7,
+  pin: 3333,
+},
+const account4 = {
+  owner: 'Sarah Smith',
+  movements: [430, 1000, 700, 50, 90],
+  interestRate: 1,
+  pin: 4444,
+}
+])
+*/
 // Data
 const account1 = {
   owner: 'Jonas Schmedtmann',
@@ -52,6 +81,12 @@ const inputTransferAmount = document.querySelector('.form__input--amount');
 const inputLoanAmount = document.querySelector('.form__input--loan-amount');
 const inputCloseUsername = document.querySelector('.form__input--user');
 const inputClosePin = document.querySelector('.form__input--pin');
+
+// global variables
+let currentAccount;
+let timer;
+let sortOrder = 'afterbegin';
+
 const displayMovements = function (movements) {
   containerMovements.innerHTML = '';
   movements.forEach((mov, i) => {
@@ -64,25 +99,18 @@ const displayMovements = function (movements) {
         <div class="movements__value">${mov}€</div>
       </div>
     `;
-    containerMovements.innerHTML += html;
-    containerMovements.insertAdjacentHTML('afterbegin', html);
+    // containerMovements.innerHTML += html;
+    containerMovements.insertAdjacentHTML(sortOrder, html);
   });
 };
-/* función que inserta un campo nuevo en lo  accounts, llamado username que tenga las iniciales
-const account1 = {
-  owner: 'Jonas Schmedtmann',
-  movements: [200, 450, -400, 3000, -650, -130, 70, 1300],
-  interestRate: 1.2, // %
-  pin: 1111,
+
+const logout = function () {
+  currentAccount = null;
+  labelWelcome.textContent = 'Log in to get started';
+  clearInterval(timer);
+  containerApp.style.opacity = 0;
 };
-const account1 = {
-  owner: 'Jonas Schmedtmann',
-  movements: [200, 450, -400, 3000, -650, -130, 70, 1300],
-  interestRate: 1.2, // %
-  pin: 1111,
-  username: js
-};
-*/
+
 const createUserNames = function (accounts) {
   accounts.forEach(function (acc) {
     acc.username = acc.owner
@@ -123,51 +151,42 @@ function displaySummary(acc) {
   labelSumInterest.textContent = `${interest}€`;
 }
 const updateUI = function () {
+  if (timer) clearInterval(timer);
+  timer = startLogOutTimer();
   displayMovements(currentAccount.movements);
   displayBalance(currentAccount);
   displaySummary(currentAccount);
 };
 
-// Global variables
-let currentAccount;
-
 // EVENTOS ********************************************
 btnLogin.addEventListener('click', function (e) {
-  console.log('Me han pulsado');
   e.preventDefault();
   /* obtener  la cuenta que nos interesa */
   const username = inputLoginUsername.value;
   const pin = Number(inputLoginPin.value);
-  console.log(username, pin);
   currentAccount = accounts.find(acc => acc.username === username);
-  if (currentAccount && currentAccount.pin === pin) {
-    // if (currentAccount.?pin === pin) {
-
+  if (currentAccount?.pin === pin) {
     labelWelcome.textContent = `Bienvenido ${
       currentAccount.owner.split(' ')[0]
     }`;
     updateUI();
-
     containerApp.style.opacity = 1;
     inputLoginUsername.value = inputLoginPin.value = '';
-    // Quitar el foco si lo tiene
+    // quitar foco si lo tiene:
     inputLoginPin.blur();
   } else {
-    console.log(`PIN  o usuario incorrecto`);
+    console.log('pin incorrecto  o usuario desconocido');
   }
 });
-
-// Evento transferir dinero
 btnTransfer.addEventListener('click', function (e) {
-  console.log(`Me han pulsado el botón transferir`);
+  console.log('hacer  transferencia');
   e.preventDefault();
-  /* obtener la cuenta y el importe */
-  const transferUsername = inputTransferTo.value;
   const amount = Number(inputTransferAmount.value);
+  const transferUsername = inputTransferTo.value;
   const transferAccount = accounts.find(
     acc => acc.username === transferUsername
   );
-  // conditions to transfer
+  // conditions to  transfer
   // positive amount
   // existent user
   // balance >= amount
@@ -178,105 +197,112 @@ btnTransfer.addEventListener('click', function (e) {
     currentAccount.balance >= amount &&
     transferAccount.username !== currentAccount.username
   ) {
-    // transfer
     currentAccount.movements.push(-amount);
     transferAccount.movements.push(amount);
-    // update UI
     updateUI();
-    // clear form
-    inputTransferTo.value = inputTransferAmount.value = '';
-    // focus
-    inputTransferAmount.focus();
   } else {
-    console.log('Transferencia no realizada');
+    console.log('Transferencia no realizada!!!!');
   }
 });
-// Evento prestamo
-btnLoan.addEventListener('click', function (e) {
-  console.log(`Me han pulsado el botón prestamo`);
-  e.preventDefault();
-  /* obtener la cuenta y el importe */
-  const amount = Number(inputLoanAmount.value);
-  // conditions to loan
-  // positive amount
-  // loan at least 10% of max movement on this account
-  const minDepositRequired = currentAccount.movements.some(
-    mov => mov > amount * 0.1
-  );
-  if (amount > 0 && minDepositRequired) {
-    // loan
-    console.log(`Se ha hecho el préstamo de ${amount}€`);
-    currentAccount.movements.push(amount);
-    // update UI
-    updateUI();
-    // clear form
-    inputLoanAmount.value = '';
-    // focus
-    inputLoanAmount.blur();
-  } else {
-    console.log('Préstamo no realizado');
-  }
-});
-// Delete account
 btnClose.addEventListener('click', function (e) {
   e.preventDefault();
   console.log(
-    `Cerrar cuenta de ${currentAccount.username} con pin ${currentAccount.pin}`
+    `cerrar cuenta de ${currentAccount.username} con pin ${currentAccount.pin} `
   );
-  // delete account
   const username = inputCloseUsername.value;
   const pin = Number(inputClosePin.value);
   if (username === currentAccount.username && pin === currentAccount.pin) {
     const index = accounts.findIndex(acc => acc.username === username);
-    console.log(`Elemento a eliminar ${index},accounts[index]`);
-    /* Borrar elemento de accounts */
+    console.log(`Elemento  a eliminar  ${index}`, accounts[index]);
+    /* borrar elemento  de accounts */
     // slice no muta el array (accounts) y splice si
     accounts.splice(index, 1);
     console.log(accounts);
+    inputCloseUsername.value = inputClosePin.value = '';
+    containerApp.style.opacity = 0;
   } else {
-    console.log('No se ha podido eliminar la cuenta');
+    console.log('No se puede eliminar cuenta');
   }
-  // update UI
-  updateUI();
-  // clear form
-  inputCloseUsername.value = inputClosePin.value = '';
-  // opacity
-  containerApp.style.opacity = 0;
 });
-/*
-Temporal login
-*/
-currentAccount = account1;
-updateUI();
-containerApp.style.opacity = 1;
+btnLoan.addEventListener('click', function (e) {
+  e.preventDefault();
+  const amount = Number(inputLoanAmount.value);
+  /* amount>0 and amount*0.1 <  someDeposit */
+  const minDepositReq = currentAccount.movements.some(
+    mov => mov > amount * 0.1
+  );
+  if (amount > 0 && minDepositReq) {
+    console.log(`Se ha  hecho el depósito de ${amount}`);
+    currentAccount.movements.push(amount);
+    updateUI();
+  } else {
+    console.log('No se ha podido hacer el depósito');
+  }
+  inputLoanAmount.value = '';
+  inputLoanAmount.blur();
+});
+btnSort.addEventListener('click', function (e) {
+  e.preventDefault();
+  sortOrder = sortOrder === 'afterbegin' ? 'beforeend' : 'afterbegin';
+  updateUI();
+});
 
-console.log(currentAccount.movements);
-
-// Metodo some y every
-const movimientos = [300, 200, -200];
+//  método some y método  every
+const movimientos = [300, -200, -200];
 const isDeposit = mov => mov > 0;
 const anyDeposit = movimientos.some(isDeposit);
 console.log(anyDeposit);
-
 const allDeposit = movimientos.every(isDeposit);
 console.log(allDeposit);
-
-const arr = [[1, 3, 5, 7], [9, 10], 3];
-/* suma de todos los elementos del array movements */
-
-const overallBalance = accounts.map(acc => acc.movements);
-console.log(overallBalance);
-console.log(
-  overallBalance
-    .flat()
-    .flat()
-    .reduce((acc, cur) => acc + cur, 0)
-);
-// sumamos todos los elementos del overallBalance.flat()
-const sum = overallBalance.flat().reduce((acc, cur) => acc + cur, 0);
-console.log(`Suma total ${sum}`);
+const arr = [[1, 3, [5, 7]], [9, 10], 3];
+console.log(arr.flat(2));
 console.log(arr);
-console.log(arr.flat());
+const overallBalance = accounts
+  .map(acc => acc.movements)
+  .flat()
+  .reduce((acc, cur) => acc + cur, 0);
+const overallBalance2 = accounts
+  .map(acc => acc.movements) // cur -> array(4), arrray(3), array(3)
+  .reduce((acc, cur) => acc + cur.reduce((acc, cur) => acc + cur, 0), 0);
+const overallBalance3 = accounts
+  .flatMap(acc => acc.movements)
+  .reduce((acc, cur) => acc + cur, 0);
+console.log(overallBalance);
+console.log(overallBalance3);
+// setInterval -> Asincrona y que no se para (o la  paramos nosotros)
+// let i = 0;
+// setInterval(() => {
+//   i += 1;
+//   console.log(i);
+// }, 1000);
+// let time = 10;
+// const startLogOutTimer = function () {
+//   const timer = setInterval(() => {
+//     time -= 1;
+//     if (time === 0) clearInterval(timer);
+//     labelTimer.textContent = time;
+//   }, 1000);
+// };
+// startLogOutTimer();
+function startLogOutTimer() {
+  let time = 300;
+  const printTime = time => {
+    //  min, sec -> darle un  padding: si tengo 2m y 5s -> 02:05
+    const min = Math.trunc(time / 60)
+      .toString()
+      .padStart(2, 0);
+    const sec = String(time % 60).padStart(2, 0);
+    labelTimer.textContent = `${min}:${sec}`;
+  };
+  const tick = () => {
+    time -= 1;
+    if (time === 0) logout();
+    printTime(time);
+  };
+  const timer = setInterval(tick, 1000);
+  printTime(time);
+  return timer;
+}
 
 // /// //////////////////////////////////////////////
 // /// //////////////////////////////////////////////
