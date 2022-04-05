@@ -103,7 +103,12 @@ const displayMovements = function (movements) {
     containerMovements.insertAdjacentHTML(sortOrder, html);
   });
 };
-
+// Update date en labelDate
+const updateDate = function () {
+  const hoy = new Date(Date.now());
+  labelDate.innerHTML = hoy.toLocaleDateString();
+};
+// Funcion Logout
 const logout = function () {
   currentAccount = null;
   labelWelcome.textContent = 'Log in to get started';
@@ -148,7 +153,7 @@ function displaySummary(acc) {
     .map(deposit => (deposit * interestRate) / 100)
     .filter(interest => interest > 1)
     .reduce((acc, cur) => acc + cur, 0);
-  labelSumInterest.textContent = `${interest}€`;
+  labelSumInterest.textContent = `${interest.toFixed(2)}€`;
 }
 const updateUI = function () {
   if (timer) clearInterval(timer);
@@ -156,6 +161,7 @@ const updateUI = function () {
   displayMovements(currentAccount.movements);
   displayBalance(currentAccount);
   displaySummary(currentAccount);
+  updateDate();
 };
 
 // EVENTOS ********************************************
